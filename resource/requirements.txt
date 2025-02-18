@@ -1,0 +1,4 @@
+opencv-python
+deepface
+tf_keras
+moviepy==1.0.3
