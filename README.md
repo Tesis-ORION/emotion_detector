@@ -19,17 +19,25 @@
 **emotion detector** is a package for ROS2 Jazzy that allow us to capture camera video, recognize face mesh using *HaarCascade* model, and detect facial emotions using *DeepFace*.
 
 ## 🎥 Demostration
-TODO: record video
-
-
+https://github.com/user-attachments/assets/0afdabfb-ed9f-404f-8ce3-3e7e2e5c7a6a
 
 ## 📝 How to Build
 
 To build the packages, follow these steps:
 
 ```shell
-TODO: Add commands to run
+# First you need to clone the repository in your workspace
+cd ~/ros2_ws/src
+git clone https://github.com/Tesis-ORION/emotion_detector
 
+# Now you need to install the dependencies
+cd emotion_detector/resources
+pip install -r requirements --break-system-packages
+
+# Next you need to compile the package and launch the project
+cd ~/ros2_ws
+colcon build --packages-select emotion_detector
+ros2 launch emotion_detector emotionDetector.launch.py
 ```
 
 ## 📃 License
