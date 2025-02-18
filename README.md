@@ -1,4 +1,3 @@
-Package for depth camera MaixSense A010 in ROS Humble
 # emotion detector
 [![language](https://img.shields.io/badge/language-python-239120)](#)
 [![OS](https://img.shields.io/badge/OS-Ubuntu_24.04-0078D4)](#)
