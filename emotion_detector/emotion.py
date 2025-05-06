@@ -31,12 +31,12 @@ class EmotionRecognizerNode(Node):
         # Suscriptor al tópico de la cámara
         self.subscription = self.create_subscription(
             Image,
-            "/camera_os30a/image_raw",
+            "/apc/left/image_color",
             self.image_callback,
             10
         )
 
-        self.get_logger().info("🎯 Nodo de reconocimiento de emociones inicializado y suscrito a /camera/image_raw")
+        self.get_logger().info("🎯 Nodo de reconocimiento de emociones inicializado y suscrito a /apc/left/image_color")
 
     def image_callback(self, msg):
         try:
