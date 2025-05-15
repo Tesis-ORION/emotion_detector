@@ -1,3 +1,7 @@
+#!/usr/bin/env python3
+
+import os
+
 import rclpy
 from rclpy.node import Node
 
@@ -8,12 +12,8 @@ from cv_bridge import CvBridge
 from ament_index_python.packages import get_package_share_directory
 
 import cv2
-from deepface import DeepFace
-import os
-
-package_share_directory = get_package_share_directory("emotion_detector")
-model_path = os.path.join(package_share_directory, 'models', "haarcascade_frontalface_default.xml")
-
+import tensorflow as tf
+import numpy as np
 
 class EmotionRecognizerNode(Node):
     def __init__(self):
@@ -21,59 +21,85 @@ class EmotionRecognizerNode(Node):
 
         self.bridge = CvBridge()
 
-        # Cargar el clasificador Haar Cascade
-        self.face_cascade = cv2.CascadeClassifier(model_path)
+        # Ruta al Haar cascade y al modelo .keras dentro de tu paquete
+        pkg_share = get_package_share_directory('emotion_detector')
+        cascade_path = os.path.join(pkg_share, 'models', 'haarcascade_frontalface_default.xml')
+        model_path   = os.path.join(pkg_share, 'models', 'fer2013_mini_XCEPTION.208-0.61.keras')
+
+        # Carga los recursos
+        self.face_cascade = cv2.CascadeClassifier(cascade_path)
+        self.model = tf.keras.models.load_model(model_path)
+        self.get_logger().info(f"✅ Modelo cargado desde: {model_path}")
+
+        # Mapeo índice→etiqueta
+        self.emotion_labels = [
+            'Angry', 'Disgust', 'Fear',
+            'Happy', 'Sad', 'Surprise', 'Neutral'
+        ]
 
         # Publicadores
-        self.publisher_emotion = self.create_publisher(String, "/emotion", 10)
-        self.publisher_debug_image = self.create_publisher(Image, "/emotion/image_debug", 10)
+        self.pub_emotion = self.create_publisher(String, "/emotion", 10)
+        self.pub_debug   = self.create_publisher(Image, "/emotion/image_debug", 10)
 
-        # Suscriptor al tópico de la cámara
-        self.subscription = self.create_subscription(
+        # Suscriptor a la cámara
+        self.create_subscription(
             Image,
             "/apc/left/image_color",
             self.image_callback,
             10
         )
 
-        self.get_logger().info("🎯 Nodo de reconocimiento de emociones inicializado y suscrito a /camera/image_raw")
+        self.get_logger().info("🎯 Nodo de reconocimiento de emociones inicializado")
 
-    def image_callback(self, msg):
+    def image_callback(self, msg: Image):
         try:
-            # Convertir imagen ROS a OpenCV
+            # Convertir ROS→OpenCV
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
-            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-            rgb_frame = cv2.cvtColor(gray_frame, cv2.COLOR_GRAY2RGB)
+            gray  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Detectar rostros
-            faces = self.face_cascade.detectMultiScale(gray_frame, scaleFactor=1.1, minNeighbors=5, minSize=(30, 30))
+            # Detecta caras
+            faces = self.face_cascade.detectMultiScale(
+                gray,
+                scaleFactor=1.1,
+                minNeighbors=5,
+                minSize=(48, 48)
+            )
 
             for (x, y, w, h) in faces:
-                face_roi = rgb_frame[y:y + h, x:x + w]
+                # Extrae ROI y preprocesa
+                roi = gray[y:y+h, x:x+w]
+                roi = cv2.resize(roi, (64, 64))
+                roi = roi.astype('float32') / 255.0
+                roi = np.expand_dims(roi, axis=0)    # batch
+                roi = np.expand_dims(roi, axis=-1)   # channel
 
-                # Analizar emoción
-                result = DeepFace.analyze(face_roi, actions=['emotion'], enforce_detection=False)
-                emotion = result[0]['dominant_emotion']
-                confidence = result[0]['emotion'][emotion] / 100
+                # Predicción
+                preds = self.model.predict(roi, verbose=0)
+                idx   = int(np.argmax(preds[0]))
+                label = self.emotion_labels[idx]
+                conf  = float(preds[0][idx])
 
-                # Dibujar sobre la imagen
-                cv2.rectangle(frame, (x, y), (x + w, y + h), (0, 0, 255), 2)
-                cv2.putText(frame, f"{emotion}: {confidence*100:.2f}%", (x, y - 10),
-                            cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 255), 2)
+                # Dibuja rectángulo y texto
+                cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
+                cv2.putText(
+                    frame,
+                    f"{label}: {conf*100:.1f}%",
+                    (x, y-10),
+                    cv2.FONT_HERSHEY_SIMPLEX,
+                    0.9, (0, 255, 0), 2
+                )
 
-                # Publicar emoción
-                msg_out = String()
-                msg_out.data = emotion
-                self.publisher_emotion.publish(msg_out)
-                self.get_logger().info(f"📤 Emoción publicada: {emotion}")
+                # Publica emoción
+                out = String()
+                out.data = label
+                self.pub_emotion.publish(out)
 
-            # Publicar imagen anotada
-            debug_image_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
-            self.publisher_debug_image.publish(debug_image_msg)
+            # Publica imagen anotada
+            debug_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
+            self.pub_debug.publish(debug_msg)
 
         except Exception as e:
-            self.get_logger().error(f"❌ Error procesando imagen: {e}")
-
+            self.get_logger().error(f"❌ Error al procesar imagen: {e}")
 
 def main(args=None):
     rclpy.init(args=args)
@@ -81,7 +107,6 @@ def main(args=None):
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
-
 
 if __name__ == "__main__":
     main()
