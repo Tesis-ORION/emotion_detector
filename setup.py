@@ -15,6 +15,7 @@ setup(
         ('share/' + package_name, ['package.xml']),
         (os.path.join('share', package_name, 'models'), glob('models/*.xml')),
         (os.path.join('share', package_name, 'models'), glob('models/*.keras')),
+        (os.path.join('share', package_name, 'models'), glob('models/*.tflite')),
         (os.path.join('share', package_name, 'launch'), glob('launch/*.launch.py')),
         (os.path.join('share', package_name, 'rviz'), glob('rviz/*.rviz')),
     ],
@@ -28,6 +29,7 @@ setup(
     entry_points={
         'console_scripts': [
             "emotionDetector = emotion_detector.emotion:main",
+            "emotionDetectorCoral = emotion_detector.emotion_coral:main",
         ],
     },
 )

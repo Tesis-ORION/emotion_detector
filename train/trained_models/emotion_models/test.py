@@ -21,7 +21,7 @@ in_width, in_height = input_size(interpreter)
 
 # 3. Emotion labels
 EMOTION_LABELS = [
-    'Disgust', 'Angry', 'Fear',
+    'Angry', 'Disgust', 'Fear',
     'Happy', 'Sad', 'Surprise', 'Neutral'
 ]
 
@@ -76,4 +76,3 @@ try:
 finally:
     cap.release()
     cv2.destroyAllWindows()
-
