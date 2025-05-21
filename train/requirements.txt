@@ -1,7 +1,7 @@
-keras==3.3.3
+keras==3.9.0
 matplotlib==3.2.1
 scikit-learn
-numpy==1.19.5
+numpy==1.22.0
 pandas==1.4.3
-opencv-python==4.5.1.48
+opencv-python==4.8.1.78
 tensorflow[and-cuda]
