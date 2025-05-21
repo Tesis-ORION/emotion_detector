@@ -44,7 +44,7 @@ class EmotionRecognizerNode(Node):
         # Suscriptor a la cámara
         self.create_subscription(
             Image,
-            "/apc/left/image_color",
+            "/camera/color/image_raw",
             self.image_callback,
             10
         )

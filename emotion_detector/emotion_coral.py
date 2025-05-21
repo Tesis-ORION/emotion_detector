@@ -50,7 +50,7 @@ class emotion_coral(Node):
         # Subscriber
         self.create_subscription(
             Image,
-            '/apc/left/image_color',
+            '/camera/color/image_raw',
             self.image_callback,
             10
         )
