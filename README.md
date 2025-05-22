@@ -5,6 +5,7 @@
 [![GitHub release](https://img.shields.io/badge/release-v1.0.0-4493f8)](#)
 [![GitHub release date](https://img.shields.io/badge/release_date-february_2025-96981c)](#)
 [![GitHub last commit](https://img.shields.io/badge/last_commit-february_2025-96981c)](#)
+[![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/Tesis-ORION/emotion_detector)
 
 ⭐ Star us on GitHub — it motivates us a lot!
 
