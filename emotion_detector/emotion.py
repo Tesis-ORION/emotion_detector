@@ -5,7 +5,7 @@ import os
 import rclpy
 from rclpy.node import Node
 
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 
@@ -21,27 +21,37 @@ class EmotionRecognizerNode(Node):
 
         self.bridge = CvBridge()
 
-        # Ruta al Haar cascade y al modelo .keras dentro de tu paquete
+        # Ruta al Haar cascade y al modelo .keras
         pkg_share = get_package_share_directory('emotion_detector')
         cascade_path = os.path.join(pkg_share, 'models', 'haarcascade_frontalface_default.xml')
         model_path   = os.path.join(pkg_share, 'models', 'fer2013_mini_XCEPTION.208-0.61.keras')
 
-        # Carga los recursos
+        # Carga Haar y modelo
         self.face_cascade = cv2.CascadeClassifier(cascade_path)
         self.model = tf.keras.models.load_model(model_path)
         self.get_logger().info(f"✅ Modelo cargado desde: {model_path}")
 
-        # Mapeo índice→etiqueta
+        # Labels del modelo
         self.emotion_labels = [
             'Angry', 'Disgust', 'Fear',
             'Happy', 'Sad', 'Surprise', 'Neutral'
         ]
 
-        # Publicadores
-        self.pub_emotion = self.create_publisher(String, "/emotion", 10)
-        self.pub_debug   = self.create_publisher(Image, "/emotion/image_debug", 10)
+        # Mapeo personalizado a enteros
+        self.emotion_to_int = {
+            'Disgust': 0,
+            'Fear': 1,
+            'Angry': 2,
+            'Happy': 3,
+            'Neutral': 4
+        }
 
-        # Suscriptor a la cámara
+        # Publicadores
+        self.pub_emotion     = self.create_publisher(String, "/emotion", 10)
+        self.pub_emotion_int = self.create_publisher(Int32,  "/emotion/int", 10)
+        self.pub_debug       = self.create_publisher(Image,  "/emotion/image_debug", 10)
+
+        # Suscripción a imagen
         self.create_subscription(
             Image,
             "/camera/color/image_raw",
@@ -53,11 +63,11 @@ class EmotionRecognizerNode(Node):
 
     def image_callback(self, msg: Image):
         try:
-            # Convertir ROS→OpenCV
+            # ROS → OpenCV
             frame = self.bridge.imgmsg_to_cv2(msg, desired_encoding='bgr8')
             gray  = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
 
-            # Detecta caras
+            # Detectar rostro
             faces = self.face_cascade.detectMultiScale(
                 gray,
                 scaleFactor=1.1,
@@ -66,20 +76,18 @@ class EmotionRecognizerNode(Node):
             )
 
             for (x, y, w, h) in faces:
-                # Extrae ROI y preprocesa
                 roi = gray[y:y+h, x:x+w]
                 roi = cv2.resize(roi, (64, 64))
                 roi = roi.astype('float32') / 255.0
                 roi = np.expand_dims(roi, axis=0)    # batch
                 roi = np.expand_dims(roi, axis=-1)   # channel
 
-                # Predicción
                 preds = self.model.predict(roi, verbose=0)
                 idx   = int(np.argmax(preds[0]))
                 label = self.emotion_labels[idx]
                 conf  = float(preds[0][idx])
 
-                # Dibuja rectángulo y texto
+                # Dibuja
                 cv2.rectangle(frame, (x, y), (x+w, y+h), (0, 255, 0), 2)
                 cv2.putText(
                     frame,
@@ -89,12 +97,18 @@ class EmotionRecognizerNode(Node):
                     0.9, (0, 255, 0), 2
                 )
 
-                # Publica emoción
-                out = String()
-                out.data = label
-                self.pub_emotion.publish(out)
+                # Publicar emoción como string
+                out_str = String()
+                out_str.data = label
+                self.pub_emotion.publish(out_str)
 
-            # Publica imagen anotada
+                # Publicar emoción como entero si está en el mapeo
+                if label in self.emotion_to_int:
+                    out_int = Int32()
+                    out_int.data = self.emotion_to_int[label]
+                    self.pub_emotion_int.publish(out_int)
+
+            # Imagen de depuración
             debug_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
             self.pub_debug.publish(debug_msg)
 

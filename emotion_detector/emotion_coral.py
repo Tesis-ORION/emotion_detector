@@ -2,7 +2,7 @@
 """
 ROS2 node for real-time emotion recognition on Coral Edge TPU.
 Loads a compiled TFLite model and processes camera images from a ROS topic.
-Publishes detected emotion and annotated image.
+Publishes detected emotion (label and int) and annotated image.
 """
 
 import os
@@ -10,7 +10,7 @@ import cv2
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from std_msgs.msg import String
+from std_msgs.msg import String, Int32
 from sensor_msgs.msg import Image
 from cv_bridge import CvBridge
 from ament_index_python.packages import get_package_share_directory
@@ -43,8 +43,18 @@ class emotion_coral(Node):
             'Disgust', 'Angry', 'Fear', 'Happy', 'Sad', 'Surprise', 'Neutral'
         ]
 
+        # Custom mapping to integer values
+        self.emotion_to_int = {
+            'Disgust': 0,
+            'Fear': 1,
+            'Angry': 2,
+            'Happy': 3,
+            'Neutral': 4
+        }
+
         # Publishers
         self.pub_emotion = self.create_publisher(String, '/emotion', 10)
+        self.pub_emotion_int = self.create_publisher(Int32, '/emotion/int', 10)
         self.pub_debug   = self.create_publisher(Image, '/emotion/image_debug', 10)
 
         # Subscriber
@@ -71,8 +81,7 @@ class emotion_coral(Node):
                 # Extract ROI and preprocess to model input size
                 roi = gray[y:y+h, x:x+w]
                 roi = cv2.resize(roi, (self.in_width, self.in_height))
-                # Expand dims and set input
-                roi = np.expand_dims(roi, axis=2)  # (h, w, 1)
+                roi = np.expand_dims(roi, axis=2)
                 set_input(self.interpreter, roi)
                 self.interpreter.invoke()
 
@@ -96,10 +105,16 @@ class emotion_coral(Node):
                     2
                 )
 
-                # Publish emotion label
-                out = String()
-                out.data = label
-                self.pub_emotion.publish(out)
+                # Publish emotion as String
+                msg_str = String()
+                msg_str.data = label
+                self.pub_emotion.publish(msg_str)
+
+                # Publish emotion as Int32 (if in mapping)
+                if label in self.emotion_to_int:
+                    msg_int = Int32()
+                    msg_int.data = self.emotion_to_int[label]
+                    self.pub_emotion_int.publish(msg_int)
 
             # Publish debug image
             debug_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
