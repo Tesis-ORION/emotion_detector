@@ -6,6 +6,7 @@ Publishes detected emotion (label and int) and annotated image.
 """
 
 import os
+import time
 import cv2
 import numpy as np
 import rclpy
@@ -45,17 +46,22 @@ class emotion_coral(Node):
 
         # Custom mapping to integer values
         self.emotion_to_int = {
-            'Disgust': 0,
-            'Fear': 1,
-            'Angry': 2,
+            'Angry': 0,
+            'Disgust': 1,
+            'Fear': 2,
             'Happy': 3,
-            'Neutral': 4
+            'Neutral': 4,
+            'Sad': 5,
+            'Surprise': 6
         }
 
         # Publishers
         self.pub_emotion = self.create_publisher(String, '/emotion', 10)
         self.pub_emotion_int = self.create_publisher(Int32, '/emotion/int', 10)
         self.pub_debug   = self.create_publisher(Image, '/emotion/image_debug', 10)
+
+        # Time control for throttling /emotion/int
+        self.last_emotion_int_time = time.time()
 
         # Subscriber
         self.create_subscription(
@@ -110,11 +116,14 @@ class emotion_coral(Node):
                 msg_str.data = label
                 self.pub_emotion.publish(msg_str)
 
-                # Publish emotion as Int32 (if in mapping)
+                # Publish emotion as Int32 (throttled to every 2 seconds)
                 if label in self.emotion_to_int:
-                    msg_int = Int32()
-                    msg_int.data = self.emotion_to_int[label]
-                    self.pub_emotion_int.publish(msg_int)
+                    now = time.time()
+                    if (now - self.last_emotion_int_time) >= 2.0:
+                        msg_int = Int32()
+                        msg_int.data = self.emotion_to_int[label]
+                        self.pub_emotion_int.publish(msg_int)
+                        self.last_emotion_int_time = now
 
             # Publish debug image
             debug_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')

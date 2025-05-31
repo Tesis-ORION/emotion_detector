@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import os
+import time  # ⏱️ Para limitar frecuencia de publicación
 
 import rclpy
 from rclpy.node import Node
@@ -14,6 +15,7 @@ from ament_index_python.packages import get_package_share_directory
 import cv2
 import tensorflow as tf
 import numpy as np
+
 
 class EmotionRecognizerNode(Node):
     def __init__(self):
@@ -39,17 +41,22 @@ class EmotionRecognizerNode(Node):
 
         # Mapeo personalizado a enteros
         self.emotion_to_int = {
-            'Disgust': 0,
-            'Fear': 1,
-            'Angry': 2,
+            'Angry': 0,
+            'Disgust': 1,
+            'Fear': 2,
             'Happy': 3,
-            'Neutral': 4
+            'Neutral': 4,
+            'Sad': 5,
+            'Surprise': 6
         }
 
         # Publicadores
         self.pub_emotion     = self.create_publisher(String, "/emotion", 10)
         self.pub_emotion_int = self.create_publisher(Int32,  "/emotion/int", 10)
         self.pub_debug       = self.create_publisher(Image,  "/emotion/image_debug", 10)
+
+        # Control de tiempo para limitar publicación de /emotion/int
+        self.last_emotion_int_time = time.time()
 
         # Suscripción a imagen
         self.create_subscription(
@@ -97,16 +104,19 @@ class EmotionRecognizerNode(Node):
                     0.9, (0, 255, 0), 2
                 )
 
-                # Publicar emoción como string
+                # Publicar emoción como string (siempre)
                 out_str = String()
                 out_str.data = label
                 self.pub_emotion.publish(out_str)
 
-                # Publicar emoción como entero si está en el mapeo
+                # Publicar emoción como entero solo si ha pasado al menos 2 segundos
                 if label in self.emotion_to_int:
-                    out_int = Int32()
-                    out_int.data = self.emotion_to_int[label]
-                    self.pub_emotion_int.publish(out_int)
+                    now = time.time()
+                    if (now - self.last_emotion_int_time) >= 2.0:
+                        out_int = Int32()
+                        out_int.data = self.emotion_to_int[label]
+                        self.pub_emotion_int.publish(out_int)
+                        self.last_emotion_int_time = now
 
             # Imagen de depuración
             debug_msg = self.bridge.cv2_to_imgmsg(frame, encoding='bgr8')
@@ -115,12 +125,14 @@ class EmotionRecognizerNode(Node):
         except Exception as e:
             self.get_logger().error(f"❌ Error al procesar imagen: {e}")
 
+
 def main(args=None):
     rclpy.init(args=args)
     node = EmotionRecognizerNode()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
+
 
 if __name__ == "__main__":
     main()

@@ -30,6 +30,7 @@ setup(
         'console_scripts': [
             "emotionDetector = emotion_detector.emotion:main",
             "emotionDetectorCoral = emotion_detector.emotion_coral:main",
+            "camera = emotion_detector.camera:main",
         ],
     },
 )
