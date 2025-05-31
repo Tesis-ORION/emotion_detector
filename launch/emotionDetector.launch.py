@@ -14,14 +14,28 @@ def generate_launch_description():
     pkg_share = get_package_share_directory(package_name)
     rviz_config_path = os.path.join(pkg_share, 'rviz', 'emotion.rviz')
 
-    # Declare mode argument: 'normal' or 'coral'
+    # Argumento para elegir el modo de detección: normal o coral
     mode_arg = DeclareLaunchArgument(
         'mode',
         default_value='normal',
         description="Mode of emotion detection: 'normal' or 'coral'"
     )
 
-    # Launch normals vs coral based on mode
+    # Argumento para habilitar/deshabilitar RViz (por defecto sí)
+    rviz_arg = DeclareLaunchArgument(
+        'rviz',
+        default_value='true',
+        description='Whether to launch RViz (true/false)'
+    )
+
+    # Argumento para la ruta del archivo de configuración de RViz
+    rviz_config_arg = DeclareLaunchArgument(
+        'rviz_config',
+        default_value=rviz_config_path,
+        description='Path to RViz config file'
+    )
+
+    # Nodo normal
     normal_node = Node(
         package=package_name,
         executable='emotionDetector',
@@ -32,6 +46,7 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Nodo para Coral
     coral_node = Node(
         package=package_name,
         executable='emotionDetectorCoral',
@@ -42,21 +57,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Nodo RViz solo si se habilita
     rviz_node = Node(
         package='rviz2',
         executable='rviz2',
         name='rviz2',
         output='screen',
-        arguments=['-d', LaunchConfiguration('rviz_config')]
+        arguments=['-d', LaunchConfiguration('rviz_config')],
+        condition=IfCondition(LaunchConfiguration('rviz'))
     )
 
     return LaunchDescription([
         mode_arg,
-        DeclareLaunchArgument(
-            'rviz_config',
-            default_value=rviz_config_path,
-            description='Path to RViz config file'
-        ),
+        rviz_arg,
+        rviz_config_arg,
         normal_node,
         coral_node,
         rviz_node

@@ -112,7 +112,7 @@ class EmotionRecognizerNode(Node):
                 # Publicar emoción como entero solo si ha pasado al menos 2 segundos
                 if label in self.emotion_to_int:
                     now = time.time()
-                    if (now - self.last_emotion_int_time) >= 2.0:
+                    if (now - self.last_emotion_int_time) >= 0.5:
                         out_int = Int32()
                         out_int.data = self.emotion_to_int[label]
                         self.pub_emotion_int.publish(out_int)

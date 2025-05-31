@@ -119,7 +119,7 @@ class emotion_coral(Node):
                 # Publish emotion as Int32 (throttled to every 2 seconds)
                 if label in self.emotion_to_int:
                     now = time.time()
-                    if (now - self.last_emotion_int_time) >= 2.0:
+                    if (now - self.last_emotion_int_time) >= 0.5:
                         msg_int = Int32()
                         msg_int.data = self.emotion_to_int[label]
                         self.pub_emotion_int.publish(msg_int)
