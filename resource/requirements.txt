@@ -3,3 +3,5 @@ deepface
 tf_keras
 moviepy==1.0.3
 Flask-SQLAlchemy
+flask>=2.2.5 # not directly required, pinned by Snyk to avoid a vulnerability
+werkzeug>=3.0.6 # not directly required, pinned by Snyk to avoid a vulnerability
