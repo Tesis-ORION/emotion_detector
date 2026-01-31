@@ -3,3 +3,4 @@ deepface
 tf_keras
 moviepy==1.0.3
 Flask-SQLAlchemy
+protobuf>=6.33.5 # not directly required, pinned by Snyk to avoid a vulnerability
